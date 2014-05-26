@@ -8,10 +8,21 @@ Version: 1.0
 Text Domain: spotwp
 */
 
-define('SPOTWP_DIR', dirname(__FILE__));
+require('plugWP/init.php');
 
-require('inc/spotwp.class.php');
+/**
+* 
+*/
+class spotWP extends plugWP {
+	
+	function init(){
+		$this->inc('acf');
+	}
+
+}
+
 
 $spotwp = new spotWP();
-$spotwp->init();
+
+
 ?>
