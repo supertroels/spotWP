@@ -1,0 +1,3 @@
+[submodule "plugWP"]
+	path = plugWP
+	url = https://supertroels@github.com/supertroels/plugWP.git
