@@ -1,0 +1,1 @@
+var can_do_ads = true;

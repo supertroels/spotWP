@@ -33,7 +33,9 @@ class spotWP extends plugWP {
 		$this->contexts 		= array();
 		$this->media 			= array();
 		$this->enqueued_css 	= '';
+		$this->enqueued_js 		= '';
 		$this->prepared 		= false;
+		$this->block_notice 	= true;
 	}
 
 	function ready(){
@@ -43,7 +45,11 @@ class spotWP extends plugWP {
 		add_filter('acf/load_field/name=swp_sizes', 	array($this, 'populate_size_field'));
 		add_filter('gettext', 							array($this, 'set_save_button_text'), 20, 4);
 
+		if($this->block_notice)
+			add_action('wp_enqueue_scripts', array($this, 'adblock_check_js'));
+
 		add_action('wp_footer', array($this, 'output_enqueued_css'), 999);
+		add_action('wp_footer', array($this, 'output_enqueued_js'), 999);
 	}
 
 	/*
@@ -87,10 +93,23 @@ class spotWP extends plugWP {
 			return null;
 
 		foreach($this->sizes as $handle => $s){
-			if($query = $s['query'])
+			if($query = $s['query']){
 				$this->enqueue_css('@media '.$query.'{.swp-'.$handle.' {display: block!important;}}');
-			if($size = $s['size'])
-				$this->enqueue_css('.swp-'.$handle.' .swp-inner { width: '.$size[0].'px; height: '.$size[1].'px; }');
+			}
+			if($size = $s['size']){
+				$this->enqueue_css('.swp-'.$handle.' .swp-inner { width: '.$size[0].'px; max-height: '.$size[1].'px; }');
+				$this->enqueue_css('.swp-'.$handle.' .swp-inner object, .swp-'.$handle.' .swp-inner iframe { width: '.$size[0].'px; max-height: '.$size[1].'px; }');
+			}
+			if($this->block_notice and !$this->did_block_notice){
+				$this->enqueue_js("
+					jQuery(document).ready(function($){
+						if(!window.can_do_ads){
+							$('body').prepend('<div class=\"swp-block-notice\">Appparently you are blocking ads</div>')
+						}
+					});
+					");
+				$this->did_block_notice = true;
+			}
 		}
 	}
 
@@ -98,8 +117,8 @@ class spotWP extends plugWP {
 		$this->enqueued_css .= $css."\n";
 	}
 
-	private function enqueque_js(){
-		
+	private function enqueue_js($js){
+		$this->enqueued_js .= $js."\n";
 	}
 
 	/*
@@ -154,6 +173,16 @@ class spotWP extends plugWP {
 		}
 	}
 
+	function output_enqueued_js(){
+		if($this->enqueued_js){
+			echo '<!-- spotWP enqueued js -->';
+			echo '<script type="text/javascript">'.$this->enqueued_js.'</script>';
+		}
+	}
+
+	function adblock_check_js(){
+		wp_enqueue_script('adblock_check', $this->url.'/assets/js/ads.js');
+	}
 
 	/*
 	*********************************
