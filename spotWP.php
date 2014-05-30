@@ -15,14 +15,206 @@ require('plugWP/init.php');
 */
 class spotWP extends plugWP {
 	
+	public $media;
+	public $contexts;
+	public $enqueued_css;
+	public $prepared;
+
+	/*
+	*********************************
+	Setup methods
+	*********************************
+	*/
+
 	function init(){
 		$this->inc('acf');
+		$this->inc('titan');
+
+		$this->contexts 		= array();
+		$this->media 			= array();
+		$this->enqueued_css 	= '';
+		$this->prepared 		= false;
+	}
+
+	function ready(){
+		$this->setup_admin();
+		add_filter('acf/load_field/name=swp_contexts', 	array($this, 'populate_context_field'));
+		add_filter('acf/load_field/name=swp_media', 	array($this, 'populate_media_field'));
+		add_filter('acf/load_field/name=swp_sizes', 	array($this, 'populate_size_field'));
+		add_filter('gettext', 							array($this, 'set_save_button_text'), 20, 4);
+
+		add_action('wp_footer', array($this, 'output_enqueued_css'), 999);
+	}
+
+	/*
+	*********************************
+	Internal methods
+	*********************************
+	*/
+
+	private function setup_admin(){
+		require($this->dir.'/inc/spotWP_core.class.php');
+		spotWP_core::init();
+	}
+
+
+	private function build_meta_query($size, $context, $media = false){
+		
+		$mq = array();
+
+		$mq['relation'] = 'AND';
+		
+		$mq[] = array(
+			'key' 	=> 'swp_sizes',
+			'value' => '"'.$size.'"',
+			'compare' => 'LIKE'
+			);
+
+		$mq[] = array(
+			'key' => 'swp_contexts',
+			'value' => '"'.$context.'"',
+			'compare' => 'LIKE'
+			);
+
+		return $mq;
+
+	}
+
+
+	private function prepare(){
+		
+		if(!$this->sizes)
+			return null;
+
+		foreach($this->sizes as $handle => $s){
+			if($query = $s['query'])
+				$this->enqueue_css('@media '.$query.'{.swp-'.$handle.' {display: block!important;}}');
+			if($size = $s['size'])
+				$this->enqueue_css('.swp-'.$handle.' .swp-inner { width: '.$size[0].'px; height: '.$size[1].'px; }');
+		}
+	}
+
+	private function enqueue_css($css){
+		$this->enqueued_css .= $css."\n";
+	}
+
+	private function enqueque_js(){
+		
+	}
+
+	/*
+	*********************************
+	Hook methods
+	*********************************
+	*/
+
+	function populate_context_field($field){
+		$field['choices'] = $this->contexts;
+		return $field;
+	}
+
+	function populate_media_field($field){
+
+		$choices = array();
+		foreach($this->media as $handle => $med){
+			$choices[$handle] = $med['title'];
+		}	
+
+		$field['choices'] = $choices;
+		return $field;
+	}
+
+	function populate_size_field($field){
+
+		$choices = array();
+		foreach($this->sizes as $handle => $size){
+			$choices[$handle] = $size['title'];
+		}	
+
+		$field['choices'] = $choices;
+		return $field;
+	}
+
+	function set_save_button_text($trans, $text, $domain){
+		global $pagenow;
+		if(
+			$text == 'Publish' and 
+			$domain == 'default' and 
+			get_post_type() == 'spotwp_ad' and 
+			($pagenow == 'post.php' or $pagenow == 'post-new.php')
+		){
+			return 'Save';
+		}
+		return $trans;
+	}
+
+	function output_enqueued_css(){
+		if($this->enqueued_css){
+			echo "<style>".$this->enqueued_css."</style>";
+		}
+	}
+
+
+	/*
+	*********************************
+	Public methods
+	*********************************
+	*/
+
+	function add_context($handle, $title){
+		$this->contexts[$handle] = $title;
+	}
+
+	function add_size($handle, $args){
+
+		if(is_string($args['size']))
+			$args['size'] 	= array_map('intval', array_map('trim', explode('x', strtolower($args['size']))));
+		
+		$this->sizes[$handle] = $args;
+	}
+
+	function add_media($handle, $title, $handlers){
+		$this->media[$handle] = array('title' => $title, 'handlers' => $handlers);
+	}
+
+
+	function ad($size, $context){
+
+		/* Here we prepare the media queries */
+		if(!$this->prepared){
+			$this->prepare();
+			$this->prepared = true;
+		}
+
+		$args = array(
+			'posts_per_page'	=> 1,
+			'post_type' 		=> 'spotwp_ad',
+			'orderby' 			=> 'rand',
+			'meta_query' 		=> $this->build_meta_query($size, $context, $media)
+		);
+
+		if($ad = get_posts($args)){
+
+			require_once($this->dir.'/inc/spotWP_ad.class.php');
+			$ad = new spotWP_ad($ad[0]);
+			ob_start();
+			require($this->dir.'/views/ad.view.php');
+			$ad = ob_get_clean();
+			echo $ad;
+
+		}
+
 	}
 
 }
 
 
 $spotwp = new spotWP();
+
+function spotwp(){
+	global $spotwp;
+	return $spotwp;
+}
 
 
 ?>
