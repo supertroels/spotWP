@@ -1,0 +1,1 @@
+<?php echo $ad->embed_code ?>
