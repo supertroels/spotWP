@@ -100,7 +100,7 @@ class spotWP extends plugWP {
 			}
 			if($size = $s['size']){
 				$this->enqueue_css('.swp-'.$handle.' .swp-box { width: '.$size[0].'px; height: '.$size[1].'px; }');
-				$this->enqueue_css('.swp-'.$handle.' .swp-box .swp-payload object, .swp-'.$handle.' .swp-payload iframe { width: '.$size[0].'px; height: '.$size[1].'px; }');
+				//$this->enqueue_css('.swp-'.$handle.' .swp-box .swp-payload object, .swp-'.$handle.' .swp-payload iframe { width: '.$size[0].'px; height: '.$size[1].'px; }');
 			}
 			if($this->block_notice and !$this->did_block_notice){
 				$this->enqueue_js("
@@ -208,19 +208,18 @@ class spotWP extends plugWP {
 		$this->media[$handle] = array('title' => $title, 'handlers' => $handlers);
 	}
 
+	function ad($size, $context){
+		if($ad = $this->get_ad($size, $context)){
+			echo $ad;
+		}
+	}
 
-	function ad($size, $contexts){
+	function get_ad($size, $contexts){
 
 		if(is_string($contexts))
 			$contexts = array($contexts);
 		if(!is_array($contexts))
 			$contexts = array();
-
-		/* Here we prepare the media queries */
-		if(!$this->prepared){
-			$this->prepare();
-			$this->prepared = true;
-		}
 
 		$args = array(
 			'posts_per_page'	=> 1,
@@ -230,18 +229,28 @@ class spotWP extends plugWP {
 			'suppress_filters'  => false
 		);
 
+
 		add_filter('posts_where', array($this, 'filter_ad_where'), 1, 1);
 		if($ad = get_posts($args)){
+			
+			/* Here we prepare the media queries */
+			if(!$this->prepared){
+				$this->prepare();
+				$this->prepared = true;
+			}
+
 			remove_filter('posts_where', array($this, 'filter_ad_where'));
 			require_once($this->dir.'/inc/spotWP_ad.class.php');
 			$ad = new spotWP_ad($ad[0]);
 			ob_start();
 			require($this->dir.'/views/ad.view.php');
 			$ad = ob_get_clean();
-			echo $ad;
+			return $ad;
 
 		}
 		remove_filter('posts_where', array($this, 'filter_ad_where'));
+
+		return false;
 
 	}
 
