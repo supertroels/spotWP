@@ -99,8 +99,8 @@ class spotWP extends plugWP {
 				$this->enqueue_css('@media '.$query.'{.swp-'.$handle.' {display: block!important;}}');
 			}
 			if($size = $s['size']){
-				$this->enqueue_css('.swp-'.$handle.' .swp-inner { width: '.$size[0].'px; height: '.$size[1].'px; }');
-				$this->enqueue_css('.swp-'.$handle.' .swp-inner .swp-payload object, .swp-'.$handle.' .swp-payload iframe { width: '.$size[0].'px; height: '.$size[1].'px; }');
+				$this->enqueue_css('.swp-'.$handle.' .swp-box { width: '.$size[0].'px; height: '.$size[1].'px; }');
+				$this->enqueue_css('.swp-'.$handle.' .swp-box .swp-payload object, .swp-'.$handle.' .swp-payload iframe { width: '.$size[0].'px; height: '.$size[1].'px; }');
 			}
 			if($this->block_notice and !$this->did_block_notice){
 				$this->enqueue_js("
