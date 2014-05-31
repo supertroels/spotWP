@@ -64,7 +64,7 @@ class spotWP extends plugWP {
 	}
 
 
-	private function build_meta_query($size, $context, $media = false){
+	private function build_meta_query($size, $contexts){
 		
 		$mq = array();
 
@@ -76,11 +76,13 @@ class spotWP extends plugWP {
 			'compare' => 'LIKE'
 			);
 
-		$mq[] = array(
-			'key' => 'swp_contexts',
-			'value' => '"'.$context.'"',
-			'compare' => 'LIKE'
-			);
+		foreach($contexts as $context){
+			$mq[] = array(
+				'key' => 'swp_contexts',
+				'value' => '"'.$context.'"',
+				'compare' => 'LIKE'
+				);
+		}
 
 		return $mq;
 
@@ -97,8 +99,8 @@ class spotWP extends plugWP {
 				$this->enqueue_css('@media '.$query.'{.swp-'.$handle.' {display: block!important;}}');
 			}
 			if($size = $s['size']){
-				$this->enqueue_css('.swp-'.$handle.' .swp-inner { width: '.$size[0].'px; max-height: '.$size[1].'px; }');
-				$this->enqueue_css('.swp-'.$handle.' .swp-inner object, .swp-'.$handle.' .swp-inner iframe { width: '.$size[0].'px; max-height: '.$size[1].'px; }');
+				$this->enqueue_css('.swp-'.$handle.' .swp-inner { width: '.$size[0].'px; height: '.$size[1].'px; }');
+				$this->enqueue_css('.swp-'.$handle.' .swp-inner .swp-payload object, .swp-'.$handle.' .swp-payload iframe { width: '.$size[0].'px; height: '.$size[1].'px; }');
 			}
 			if($this->block_notice and !$this->did_block_notice){
 				$this->enqueue_js("
@@ -207,7 +209,12 @@ class spotWP extends plugWP {
 	}
 
 
-	function ad($size, $context){
+	function ad($size, $contexts){
+
+		if(is_string($contexts))
+			$contexts = array($contexts);
+		if(!is_array($contexts))
+			$contexts = array();
 
 		/* Here we prepare the media queries */
 		if(!$this->prepared){
@@ -219,11 +226,13 @@ class spotWP extends plugWP {
 			'posts_per_page'	=> 1,
 			'post_type' 		=> 'spotwp_ad',
 			'orderby' 			=> 'rand',
-			'meta_query' 		=> $this->build_meta_query($size, $context, $media)
+			'meta_query' 		=> $this->build_meta_query($size, $contexts, $media),
+			'suppress_filters'  => false
 		);
 
+		add_filter('posts_where', array($this, 'filter_ad_where'), 1, 1);
 		if($ad = get_posts($args)){
-
+			remove_filter('posts_where', array($this, 'filter_ad_where'));
 			require_once($this->dir.'/inc/spotWP_ad.class.php');
 			$ad = new spotWP_ad($ad[0]);
 			ob_start();
@@ -232,7 +241,25 @@ class spotWP extends plugWP {
 			echo $ad;
 
 		}
+		remove_filter('posts_where', array($this, 'filter_ad_where'));
 
+	}
+
+	function filter_ad_where($where){
+		if(strpos($where, 'spotwp') !== false){
+			$parts = explode('AND', $where);
+			foreach($parts as $i => $part){
+				if(stripos($part, 'swp_contexts') !== false){
+					$xs[] = $parts[$i].'AND'.$parts[$i+1];
+					unset($parts[$i], $parts[$i+1]);
+				}
+			}
+			if($xs){
+				$parts[] = '('.implode('OR', $xs).')';
+			}
+			$where = ' '.implode('AND', $parts);
+		}
+		return $where;
 	}
 
 }
