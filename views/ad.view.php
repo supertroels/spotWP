@@ -3,13 +3,11 @@
 $classes = array();
 $style = '';
 
-$classes[] = 'swp-'.$size;
-
-if($ad->contexts){
-	foreach($ad->contexts as $context){
-		$classes[] = 'swp-context-'.$context;
-	}
+if($size){
+	$classes[] 	= 'swp-'.$size;
+	$style 		= 'style="display:none;"';
 }
+
 ?>
 <div class="swp <?php echo implode(' ', $classes) ?>"<?php echo $style ?>>
 	<? do_action('spotWP/before_ad', $ad, $size) ?>
